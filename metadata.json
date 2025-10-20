@@ -1,0 +1,5 @@
+{
+  "name": "音视频转字幕",
+  "description": "上传音频或视频文件以自动生成字幕。您还可以选择将字幕翻译成多种语言，并将结果下载为 SRT 文件。",
+  "requestFramePermissions": []
+}
