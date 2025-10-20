@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useEffect } from 'react';
+import { ApiKeyManager } from './components/ApiKeyManager';
 import { FileUpload } from './components/FileUpload';
 import { LanguageSelector } from './components/LanguageSelector';
 import { ResultDisplay } from './components/ResultDisplay';
@@ -19,6 +20,7 @@ const HeaderIcon = () => (
 
 const App: React.FC = () => {
   const [file, setFile] = useState<File | null>(null);
+  const [isApiKeySet, setIsApiKeySet] = useState(false);
   const [targetLanguage, setTargetLanguage] = useState<Language>(LANGUAGES[0]);
   const [status, setStatus] = useState<Status>('idle');
   const [statusMessage, setStatusMessage] = useState('');
@@ -47,6 +49,13 @@ const App: React.FC = () => {
   const handleLanguageChange = (language: Language) => {
     setTargetLanguage(language);
   };
+  
+  const handleKeyStatusChange = useCallback((isSet: boolean) => {
+    setIsApiKeySet(isSet);
+     if (isSet) {
+      setError(null);
+    }
+  }, []);
 
   const fileToBase64 = (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
@@ -58,6 +67,13 @@ const App: React.FC = () => {
   };
 
   const handleGenerate = useCallback(async () => {
+    const apiKey = localStorage.getItem('gemini-api-key');
+    if (!apiKey) {
+      setError('请先设置您的 API 密钥。');
+      setStatus('error');
+      return;
+    }
+    
     if (!file) {
       setError('请先选择一个文件。');
       return;
@@ -74,11 +90,11 @@ const App: React.FC = () => {
       const mimeType = file.type;
 
       setStatusMessage('转录音频中...');
-      let subtitles: SubtitleEntry[] = await transcribeAudio(base64Data, mimeType);
+      let subtitles: SubtitleEntry[] = await transcribeAudio(base64Data, mimeType, apiKey);
 
       if (targetLanguage.code !== 'original') {
         setStatusMessage(`翻译为 ${targetLanguage.name} 中...`);
-        subtitles = await translateSubtitles(subtitles, targetLanguage.name);
+        subtitles = await translateSubtitles(subtitles, targetLanguage.name, apiKey);
       }
 
       setStatusMessage('格式化字幕中...');
@@ -101,6 +117,11 @@ const App: React.FC = () => {
   }, [file, targetLanguage]);
 
   const isProcessing = status === 'processing';
+  const getButtonText = () => {
+    if (isProcessing) return '生成中...';
+    if (!isApiKeySet) return '请先配置 API 密钥';
+    return '生成字幕';
+  }
 
   return (
     <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center p-4 sm:p-6 font-sans">
@@ -118,6 +139,7 @@ const App: React.FC = () => {
         </header>
 
         <main className="space-y-6">
+          <ApiKeyManager onKeyStatusChange={handleKeyStatusChange} disabled={isProcessing} />
           <FileUpload onFileChange={handleFileChange} disabled={isProcessing} />
           <LanguageSelector
             selectedLanguage={targetLanguage}
@@ -130,10 +152,10 @@ const App: React.FC = () => {
           <div className="text-center">
             <button
               onClick={handleGenerate}
-              disabled={!file || isProcessing}
+              disabled={!file || isProcessing || !isApiKeySet}
               className="w-full sm:w-auto px-8 py-3 bg-sky-600 text-white font-bold rounded-lg hover:bg-sky-500 disabled:bg-slate-600 disabled:text-slate-400 disabled:cursor-not-allowed transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-4 focus:ring-sky-500 focus:ring-opacity-50"
             >
-              {isProcessing ? '生成中...' : '生成字幕'}
+              {getButtonText()}
             </button>
           </div>
 

@@ -25,8 +25,8 @@ const srtSchema = {
   },
 };
 
-export const transcribeAudio = async (base64Data: string, mimeType: string): Promise<SubtitleEntry[]> => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+export const transcribeAudio = async (base64Data: string, mimeType: string, apiKey: string): Promise<SubtitleEntry[]> => {
+  const ai = new GoogleGenAI({ apiKey });
   const audioPart = {
     inlineData: {
       data: base64Data,
@@ -63,12 +63,12 @@ export const transcribeAudio = async (base64Data: string, mimeType: string): Pro
     return result as SubtitleEntry[];
   } catch (error) {
     console.error("Error during transcription:", error);
-    throw new Error("音频转录失败。模型可能无法处理该请求。");
+    throw new Error("音频转录失败。模型可能无法处理该请求，或者您的 API 密钥无效。");
   }
 };
 
-export const translateSubtitles = async (subtitles: SubtitleEntry[], targetLanguage: string): Promise<SubtitleEntry[]> => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+export const translateSubtitles = async (subtitles: SubtitleEntry[], targetLanguage: string, apiKey: string): Promise<SubtitleEntry[]> => {
+  const ai = new GoogleGenAI({ apiKey });
   const prompt = `将以下 JSON 数组中每个对象的 'text' 字段翻译成 ${targetLanguage}。保持完全相同的 JSON 结构，包括所有的 'startTime' 和 'endTime' 值。只修改 'text' 字段为翻译后的内容。\n\n${JSON.stringify(subtitles, null, 2)}`;
 
   try {
