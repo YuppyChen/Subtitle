@@ -25,7 +25,7 @@ const srtSchema = {
   },
 };
 
-export const transcribeAudio = async (base64Data: string, mimeType: string, apiKey: string): Promise<SubtitleEntry[]> => {
+export const transcribeToSrt = async (base64Data: string, mimeType: string, apiKey: string): Promise<SubtitleEntry[]> => {
   const ai = new GoogleGenAI({ apiKey });
   const audioPart = {
     inlineData: {
@@ -67,6 +67,33 @@ export const transcribeAudio = async (base64Data: string, mimeType: string, apiK
   }
 };
 
+export const transcribeToPlainText = async (base64Data: string, mimeType: string, apiKey: string): Promise<string> => {
+  const ai = new GoogleGenAI({ apiKey });
+  const audioPart = {
+    inlineData: {
+      data: base64Data,
+      mimeType: mimeType,
+    },
+  };
+
+  const textPart = {
+    text: "转录提供的音频文件。将所有口语内容合并成一个连贯的段落。不要包含时间戳或任何特殊格式。",
+  };
+
+  try {
+    const response = await ai.models.generateContent({
+      model,
+      contents: { parts: [audioPart, textPart] },
+    });
+
+    return response.text.trim();
+  } catch (error) {
+    console.error("Error during plain text transcription:", error);
+    throw new Error("音频转录为纯文本失败。模型可能无法处理该请求，或者您的 API 密钥无效。");
+  }
+};
+
+
 export const translateSubtitles = async (subtitles: SubtitleEntry[], targetLanguage: string, apiKey: string): Promise<SubtitleEntry[]> => {
   const ai = new GoogleGenAI({ apiKey });
   const prompt = `将以下 JSON 数组中每个对象的 'text' 字段翻译成 ${targetLanguage}。保持完全相同的 JSON 结构，包括所有的 'startTime' 和 'endTime' 值。只修改 'text' 字段为翻译后的内容。\n\n${JSON.stringify(subtitles, null, 2)}`;
@@ -92,5 +119,21 @@ export const translateSubtitles = async (subtitles: SubtitleEntry[], targetLangu
   } catch (error) {
     console.error("Error during translation:", error);
     throw new Error("字幕翻译失败。");
+  }
+};
+
+export const translateText = async (text: string, targetLanguage: string, apiKey: string): Promise<string> => {
+  const ai = new GoogleGenAI({ apiKey });
+  const prompt = `将以下文本翻译成 ${targetLanguage}。只返回翻译后的文本，不要添加任何额外的格式或解释。\n\n文本：\n"""\n${text}\n"""`;
+
+  try {
+    const response = await ai.models.generateContent({
+      model,
+      contents: prompt,
+    });
+    return response.text.trim();
+  } catch (error) {
+    console.error("Error during text translation:", error);
+    throw new Error("文本翻译失败。");
   }
 };

@@ -44,7 +44,7 @@ export const ApiKeyManager: React.FC<ApiKeyManagerProps> = ({ onKeyStatusChange,
 
   return (
     <div className="space-y-2">
-      <label className="block text-sm font-medium text-slate-300">1. 配置 API 密钥</label>
+      <label className="block text-sm font-medium text-slate-300">配置 API 密钥</label>
       {isKeySet ? (
         <div className="flex items-center justify-between p-3 bg-green-900/50 border border-green-700 rounded-lg">
           <p className="text-green-300 text-sm flex items-center">

@@ -70,7 +70,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onFileChange, disabled }
 
   return (
     <div className="space-y-2">
-       <label className="block text-sm font-medium text-slate-300">2. 上传文件</label>
+       <label className="block text-sm font-medium text-slate-300">上传文件</label>
         <label
             htmlFor="file-upload"
             onDragEnter={handleDragEnter}

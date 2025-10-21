@@ -18,7 +18,7 @@ export const LanguageSelector: React.FC<LanguageSelectorProps> = ({ selectedLang
   return (
     <div className="space-y-2">
       <label htmlFor="language-select" className="block text-sm font-medium text-slate-300">
-        3. 选择语言（可选）
+        选择翻译语言（可选）
       </label>
       <div className="relative">
         <select

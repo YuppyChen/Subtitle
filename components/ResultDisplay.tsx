@@ -1,8 +1,9 @@
 import React from 'react';
 
 interface ResultDisplayProps {
-  srtContent: string;
+  resultContent: string;
   file: File | null;
+  isPlainText: boolean;
 }
 
 const DownloadIcon = () => (
@@ -11,14 +12,14 @@ const DownloadIcon = () => (
     </svg>
 );
 
-export const ResultDisplay: React.FC<ResultDisplayProps> = ({ srtContent, file }) => {
+export const ResultDisplay: React.FC<ResultDisplayProps> = ({ resultContent, file, isPlainText }) => {
   const handleDownload = () => {
-    const blob = new Blob([srtContent], { type: 'text/plain' });
+    const blob = new Blob([resultContent], { type: isPlainText ? 'text/plain;charset=utf-8' : 'text/plain' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
     const baseName = file ? file.name.substring(0, file.name.lastIndexOf('.')) : 'subtitles';
-    a.download = `${baseName}.srt`;
+    a.download = `${baseName}.${isPlainText ? 'txt' : 'srt'}`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -27,19 +28,21 @@ export const ResultDisplay: React.FC<ResultDisplayProps> = ({ srtContent, file }
 
   return (
     <div className="space-y-4 animate-fade-in pt-6 border-t border-slate-700">
-      <h3 className="text-lg font-semibold text-slate-200">生成的字幕 (.srt)</h3>
+      <h3 className="text-lg font-semibold text-slate-200">
+        {isPlainText ? '生成的纯文本 (.txt)' : '生成的字幕 (.srt)'}
+      </h3>
       <textarea
         readOnly
-        value={srtContent}
+        value={resultContent}
         className="w-full h-48 p-3 bg-slate-900 border border-slate-700 rounded-md text-slate-300 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-sky-500"
-        placeholder="SRT 内容将显示在此处..."
+        placeholder={isPlainText ? "纯文本内容将显示在此处..." : "SRT 内容将显示在此处..."}
       />
       <button
         onClick={handleDownload}
         className="flex items-center justify-center w-full px-4 py-2 bg-green-600 text-white font-bold rounded-lg hover:bg-green-500 transition-colors duration-300"
       >
         <DownloadIcon />
-        下载 .srt 文件
+        {isPlainText ? '下载 .txt 文件' : '下载 .srt 文件'}
       </button>
     </div>
   );

@@ -5,7 +5,7 @@ import { LanguageSelector } from './components/LanguageSelector';
 import { ResultDisplay } from './components/ResultDisplay';
 import { Spinner } from './components/Spinner';
 import { MediaPlayer } from './components/MediaPlayer';
-import { transcribeAudio, translateSubtitles } from './services/geminiService';
+import { transcribeToSrt, translateSubtitles, transcribeToPlainText, translateText } from './services/geminiService';
 import { srtFormatter } from './utils/srtFormatter';
 import { srtToVtt } from './utils/vttFormatter';
 import type { Language, Status, SubtitleEntry } from './types';
@@ -18,13 +18,16 @@ const HeaderIcon = () => (
   </svg>
 );
 
+const defaultLanguage = LANGUAGES.find(lang => lang.code === 'zh-CN') || LANGUAGES[0];
+
 const App: React.FC = () => {
   const [file, setFile] = useState<File | null>(null);
   const [isApiKeySet, setIsApiKeySet] = useState(false);
-  const [targetLanguage, setTargetLanguage] = useState<Language>(LANGUAGES[0]);
+  const [targetLanguage, setTargetLanguage] = useState<Language>(defaultLanguage);
+  const [isPlainText, setIsPlainText] = useState(false);
   const [status, setStatus] = useState<Status>('idle');
   const [statusMessage, setStatusMessage] = useState('');
-  const [srtContent, setSrtContent] = useState('');
+  const [resultContent, setResultContent] = useState('');
   const [trackUrl, setTrackUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   
@@ -41,7 +44,7 @@ const App: React.FC = () => {
   const handleFileChange = (selectedFile: File | null) => {
     setFile(selectedFile);
     setStatus('idle');
-    setSrtContent('');
+    setResultContent('');
     setError(null);
     setTrackUrl(null); // Resetting will trigger the useEffect cleanup for the old URL
   };
@@ -81,31 +84,42 @@ const App: React.FC = () => {
 
     setStatus('processing');
     setError(null);
-    setSrtContent('');
+    setResultContent('');
     setTrackUrl(null); // Reset track URL before generating a new one
 
     try {
       setStatusMessage('转换文件中...');
       const base64Data = await fileToBase64(file);
       const mimeType = file.type;
+      
+      if (isPlainText) {
+        setStatusMessage('转录为纯文本中...');
+        let plainText = await transcribeToPlainText(base64Data, mimeType, apiKey);
+        
+        if (targetLanguage.code !== 'original') {
+            setStatusMessage(`翻译为 ${targetLanguage.name} 中...`);
+            plainText = await translateText(plainText, targetLanguage.name, apiKey);
+        }
+        setResultContent(plainText);
+      } else {
+        setStatusMessage('转录音频中...');
+        let subtitles: SubtitleEntry[] = await transcribeToSrt(base64Data, mimeType, apiKey);
 
-      setStatusMessage('转录音频中...');
-      let subtitles: SubtitleEntry[] = await transcribeAudio(base64Data, mimeType, apiKey);
+        if (targetLanguage.code !== 'original') {
+          setStatusMessage(`翻译为 ${targetLanguage.name} 中...`);
+          subtitles = await translateSubtitles(subtitles, targetLanguage.name, apiKey);
+        }
 
-      if (targetLanguage.code !== 'original') {
-        setStatusMessage(`翻译为 ${targetLanguage.name} 中...`);
-        subtitles = await translateSubtitles(subtitles, targetLanguage.name, apiKey);
+        setStatusMessage('格式化字幕中...');
+        const formattedSrt = srtFormatter(subtitles);
+        setResultContent(formattedSrt);
+
+        // Create VTT content and URL for the media player track
+        const vttContent = srtToVtt(formattedSrt);
+        const blob = new Blob([vttContent], { type: 'text/vtt' });
+        const url = URL.createObjectURL(blob);
+        setTrackUrl(url);
       }
-
-      setStatusMessage('格式化字幕中...');
-      const formattedSrt = srtFormatter(subtitles);
-      setSrtContent(formattedSrt);
-
-      // Create VTT content and URL for the media player track
-      const vttContent = srtToVtt(formattedSrt);
-      const blob = new Blob([vttContent], { type: 'text/vtt' });
-      const url = URL.createObjectURL(blob);
-      setTrackUrl(url);
 
       setStatus('success');
       setStatusMessage('字幕生成成功！');
@@ -114,7 +128,7 @@ const App: React.FC = () => {
       setStatus('error');
       setError(err instanceof Error ? err.message : '发生未知错误。');
     }
-  }, [file, targetLanguage]);
+  }, [file, targetLanguage, isPlainText]);
 
   const isProcessing = status === 'processing';
   const getButtonText = () => {
@@ -146,6 +160,25 @@ const App: React.FC = () => {
             onLanguageChange={handleLanguageChange}
             disabled={isProcessing}
           />
+
+          <div className="space-y-2">
+            <label className="block text-sm font-medium text-slate-300">
+              输出格式（可选）
+            </label>
+            <div className="flex items-center space-x-3 bg-slate-900 border border-slate-700 rounded-md p-3">
+              <input
+                type="checkbox"
+                id="plain-text-checkbox"
+                checked={isPlainText}
+                onChange={(e) => setIsPlainText(e.target.checked)}
+                disabled={isProcessing}
+                className="h-4 w-4 rounded border-slate-600 bg-slate-800 text-sky-600 focus:ring-sky-500 disabled:opacity-50 cursor-pointer"
+              />
+              <label htmlFor="plain-text-checkbox" className="text-sm text-slate-300 cursor-pointer">
+                输出为纯文本段落（无时间戳）
+              </label>
+            </div>
+          </div>
           
           {file && <MediaPlayer file={file} trackUrl={trackUrl} />}
 
@@ -167,8 +200,8 @@ const App: React.FC = () => {
             </div>
           )}
 
-          {status === 'success' && srtContent && (
-            <ResultDisplay srtContent={srtContent} file={file} />
+          {status === 'success' && resultContent && (
+            <ResultDisplay resultContent={resultContent} file={file} isPlainText={isPlainText} />
           )}
         </main>
       </div>
